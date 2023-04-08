@@ -1,9 +1,14 @@
 # What is this
 Working on official `getting started` and `training` content using microk8s.
+https://argoproj.github.io/argo-workflows
+
 I write the procedures and command histories so that I do not forget precise info. 
 
-# Getting started
+This is just the memo of my personal working of studying Argo Workflow official content.
+The official content is awesome, but I am not responsible for the content written here.
 
+# Getting started
+I work on this:
 https://argoproj.github.io/argo-workflows/quick-start/ 
 
 ## Setup local k8s
@@ -28,7 +33,7 @@ It was necessary for operating argo CLI commands to add the following environmen
 - ARGO_INSECURE_SKIP_VERIFY=true
 
 # Training
-
+I work on this:
 https://www.youtube.com/playlist?list=PLGHfqDpnXFXLHfeapfvtt9URtUF1geuBo 
 
 ## Workshop 101
@@ -341,3 +346,71 @@ spec:
       command: [cowsay]
       args: ["exit template"]
 ```
+### Hands On: Workflow template
+Add this from WorkflowTemplate UI and submit a workflow from this.
+If you see the error like `a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters,`, it is necessary to rename template name not using capital case (e.g. sayHello -> sayhello).
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+ name: add-example-template
+spec:
+ entrypoint: main
+ templates:
+   - name: main
+     steps:
+       - - name: addFour
+           template: add-four
+           arguments: {parameters: [{name: "a", value: "2"}]}
+       - - name: sayHello
+           template: say-hello
+           when: "{{steps.addFour.outputs.result}} > 5"
+   - name: add-four
+     inputs: {parameters: [{name: "a"}]}
+     container:
+       image: alpine:latest
+       command: [sh, -c]
+       args: ["echo $(( {{inputs.parameters.a}} + 4 ))"]
+   - name: say-hello
+     container:
+       image: alpine:latest
+       command: [sh, -c]
+       args: [echo "Hello Intuit!"]
+```
+
+After adding the workflow template, we can get from kubectl:
+```bash
+$ microk8s kubectl get workflowtemplates
+NAME                   AGE
+add-example-template   14m
+```
+
+### Hands On: Refer Workflow template from Workflow
+After adding workflow template definition above, we can submit workflow like this.
+In this workflow, we can import only the template `add-four` from the workflow template `add-example-template`.
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: workflow-template-hello-world-
+spec:
+  entrypoint: whalesay
+  templates:
+  - name: whalesay
+    steps:
+      - - name: call-whalesay-template
+          templateRef:
+            name: add-example-template
+            template: add-four
+          arguments:
+            parameters:
+            - name: a
+              value: "3"
+```
+
+### Cluster Workflow template
+Official document: https://argoproj.github.io/argo-workflows/cluster-workflow-templates/
+- Cluster scoped WorkflowTemplate. This can be accessed across all namespaces in the cluster.
+- When reference a template in ClusterWorkflowTemplate from Workflow, it is necessary to add `clusterScope: true` in `templateRef` section.
+
+### CronWorkflow
