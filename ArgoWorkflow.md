@@ -316,7 +316,7 @@ spec:
       args: ["cat /tmp/message"]
 ```
 
-#### Execute workflow sample: Exit handler
+### Hands On: Exit handler
 Step named `exit` is triggered by the end of `whalesay` step, although these two steps can be executed parallel.
 ```yml
 apiVersion: argoproj.io/v1alpha1
