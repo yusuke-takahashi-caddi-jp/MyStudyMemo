@@ -317,7 +317,7 @@ spec:
 ```
 
 ### Hands On: Exit handler
-Step named `exit` is triggered by the end of `whalesay` step, although these two steps can be executed parallel.
+Step named `exit` is triggered by the end of `whalesay` step, although any configurations calling `exit` is not defined.
 ```yml
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
