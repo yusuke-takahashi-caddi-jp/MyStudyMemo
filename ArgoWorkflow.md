@@ -323,8 +323,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: hello-world-
-  labels:
-    workflows.argoproj.io/archive-strategy: false
+  # I have to delete this from official example to run the workflow correctly (I don't know why).
+  # labels:
+  #   workflows.argoproj.io/archive-strategy: false
 spec:
   entrypoint: whalesay
   onExit: exit
