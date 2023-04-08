@@ -414,3 +414,86 @@ Official document: https://argoproj.github.io/argo-workflows/cluster-workflow-te
 - When reference a template in ClusterWorkflowTemplate from Workflow, it is necessary to add `clusterScope: true` in `templateRef` section.
 
 ### CronWorkflow
+CronWorkflow is similar to Cronjob of k8s, but CronWorkflow do not use k8s Cronjob. Scheduling is handled by Argo Workflow.
+Here, I tried to submit sample CronWorkflow from official github repository.
+https://github.com/argoproj/argo-workflows/blob/master/examples/cron-workflow.yaml
+- concurrencyPolicy is same as this: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#concurrency-policy
+  - In this example, `concurrencyPolicy: Replace`.if the existing workflow takes so long time, it will be replaced by next executed workflow.
+
+This can be created from Argo Workflow UI. After creating it, we can get it from kubectl command:
+```bash
+$ microk8s kubectl get CronWorkflow
+NAME          AGE
+hello-world   2m16s
+$ microk8s kubectl describe CronWorkflow hello-world
+Name:         hello-world
+Namespace:    default
+Labels:       workflows.argoproj.io/creator=system-serviceaccount-argo-argo-server
+Annotations:  cronworkflows.argoproj.io/last-used-schedule: CRON_TZ=America/Los_Angeles * * * * *
+API Version:  argoproj.io/v1alpha1
+Kind:         CronWorkflow
+Metadata:
+  Creation Timestamp:  2023-04-08T16:58:37Z
+  Generation:          6
+  Managed Fields:
+    API Version:  argoproj.io/v1alpha1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .:
+          f:workflows.argoproj.io/creator:
+      f:spec:
+    Manager:      argo
+    Operation:    Update
+    Time:         2023-04-08T16:58:37Z
+    API Version:  argoproj.io/v1alpha1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .:
+          f:cronworkflows.argoproj.io/last-used-schedule:
+      f:status:
+    Manager:         workflow-controller
+    Operation:       Update
+    Time:            2023-04-08T16:59:00Z
+  Resource Version:  13929852
+  Self Link:         /apis/argoproj.io/v1alpha1/namespaces/default/cronworkflows/hello-world
+  UID:               79be6124-9d07-44a1-a90a-bd67e9a6a061
+Spec:
+  Concurrency Policy:             Replace
+  Failed Jobs History Limit:      4
+  Schedule:                       * * * * *
+  Starting Deadline Seconds:      0
+  Successful Jobs History Limit:  4
+  Timezone:                       America/Los_Angeles
+  Workflow Spec:
+    Arguments:
+    Entrypoint:  whalesay
+    Templates:
+      Container:
+        Args:
+          🕓 hello world. Scheduled on: {{workflow.scheduledTime}}
+        Command:
+          cowsay
+        Image:  docker/whalesay:latest
+        Name:   
+        Resources:
+      Inputs:
+      Metadata:
+      Name:  whalesay
+      Outputs:
+Status:
+  Active:
+    API Version:        argoproj.io/v1alpha1
+    Kind:               Workflow
+    Name:               hello-world-1680973260
+    Namespace:          default
+    Resource Version:   13929851
+    UID:                7042e6fd-9cd1-4ad1-8cc8-4859ea7469ce
+  Last Scheduled Time:  2023-04-08T17:01:00Z
+Events:                 <none>
+yusuke@yusuke-Latitude-7490 ~> 
+
+```
