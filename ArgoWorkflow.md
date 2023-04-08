@@ -5,8 +5,7 @@ https://argoproj.github.io/argo-workflows/quick-start/
 ## Setup local k8s
 
 I used microk8s for the local environment of kubernetes.
-
-In this article, microk8s is said to be more suitable for developers.
+But I think there are many other options.
 
 ## Hello world
 
