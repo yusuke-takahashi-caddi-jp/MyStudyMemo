@@ -151,11 +151,10 @@ spec:
 
 ### Hands On: Artifact
 references:
-- Official minio setup procedure: https://argoproj.github.io/argo-workflows/configure-artifact-repository/#configuring-minio
+- Official MinIO setup procedure: https://argoproj.github.io/argo-workflows/configure-artifact-repository/#configuring-minio
 
-#### Setup minio on microk8s
-Note: this may be old method. 
-
+#### Setup MinIO on microk8s
+MinIO is AWS S3 bucket simulator.
 ```bash
 $ microk8s enable dns
 $ microk8s enable helm3
@@ -164,8 +163,9 @@ $ microk8s helm3 repo add minio https://helm.min.io/ # official minio Helm chart
 $ microk8s helm3 repo update
 $ microk8s helm3 install argo-artifacts minio/minio --set service.type=LoadBalancer --set fullnameOverride=argo-artifacts
 ```
+Note: this procedure may be old. 
 
-#### Create bucket on minio
+#### Create bucket on MinIO
 First, you have to get keys neccesary for login.
 ```bash
 $ ACCESS_KEY=$(microk8s kubectl get secret argo-artifacts --namespace default -o jsonpath="{.data.accesskey}" | base64 --decode)
@@ -177,9 +177,9 @@ $ microk8s kubectl port-forward  svc/argo-artifacts 9000:9000
 ```
 Open localhost:9000 in your browser.
 You have to input ACCESS_KEY and SECRET_KEY here.
-After you log in to minio, create bucket named `my-bucket`.
+After you log in to MinIO, create bucket named `my-bucket`.
 
-#### Add secret for access minio from workflow pods
+#### Add secret for access MinIO from workflow pods
 First, you have to get base-64 encoded keys.
 Be careful not to include newline character(-n option!).
 ```bash
@@ -201,11 +201,10 @@ Apply this secret to your k8s cluster.
 microk8s kubectl apply -f /path/to/minio.yml
 ```
 
-#### Execute workflow sample: Output workflow (Slide P37)
-Try creating new workflow as follow.
+#### Execute workflow sample: Output workflow
 In this workflow, a txt file is uploded into artifact repository you created.
 After running of the workflow, you can download file from minio UI (localhost:9000).
-Note: This is a little bit modified from official training content
+Note: This is a little bit modified from official training content.
 ```yml
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
@@ -234,4 +233,110 @@ spec:
               secretKeySecret:
                 name: my-argo-artifacts-cred
                 key: secretkey
+```
+
+#### Execute workflow sample: Output workflow
+In this workflow, a txt file is downloaded from the artifact repository into your workflow pod.
+After running of the workflow, the downloaded file content is printed on log.
+Note: This is a little bit modified from official training content.
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: input-artifact-s3-
+spec:
+  entrypoint: input-artifact
+  templates:
+    - name: input-artifact
+      inputs:
+        artifacts:
+          - name: my-art
+            path: my-artifact
+            s3:
+              bucket: my-bucket
+              endpoint: argo-artifacts:9000
+              insecure: true
+              key: output/hello_world.txt
+              accessKeySecret:
+                name: my-argo-artifacts-cred
+                key: accesskey
+              secretKeySecret:
+                name: my-argo-artifacts-cred
+                key: secretkey
+      container:
+        image: debian:latest
+        command: [sh, -c]
+        args: ["cat my-artifact"]
+```
+
+#### Execute workflow sample: Passing workflow
+Passing data using artifact.
+Although no data is persisted on the artifact registry after running of the workflow, it was necessary to add `artifactRepositoryRef` configuration in `spec` of `Workflow` definition. May be the file is uploded to the artifact registry tempolary, in order to pass data between steps.
+Note: This is a little bit modified from official training content.
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: artifact-passing-
+spec:
+  entrypoint: artifact-example
+  artifactRepositoryRef:
+    configMap: artifact-repositories
+    key: argo-artifacts
+  templates:
+  - name: artifact-example
+    steps:
+    - - name: generate-artifact
+        template: whalesay
+    - - name: consume-artifact
+        template: print-message
+        arguments:
+          artifacts:
+          - name: message
+            from: "{{steps.generate-artifact.outputs.artifacts.hello-art}}"
+
+  - name: whalesay
+    container:
+      image: docker/whalesay:latest
+      command: [sh, -c]
+      args: ["sleep 1; cowsay hello world | tee /tmp/hello_world.txt"]
+    outputs:
+      artifacts:
+      - name: hello-art
+        path: /tmp/hello_world.txt
+
+  - name: print-message
+    inputs:
+      artifacts:
+      - name: message
+        path: /tmp/message
+    container:
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["cat /tmp/message"]
+```
+
+#### Execute workflow sample: Exit handler
+Step named `exit` is triggered by the end of `whalesay` step, although these two steps can be executed parallel.
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: hello-world-
+  labels:
+    workflows.argoproj.io/archive-strategy: false
+spec:
+  entrypoint: whalesay
+  onExit: exit
+  templates:
+  - name: whalesay
+    container:
+      image: docker/whalesay:latest
+      command: [cowsay]
+      args: ["hello world"]
+  - name: exit
+    container:
+      image: docker/whalesay:latest
+      command: [cowsay]
+      args: ["exit template"]
 ```
